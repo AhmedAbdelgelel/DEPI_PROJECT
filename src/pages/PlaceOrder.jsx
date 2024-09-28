@@ -1,3 +1,14 @@
+<<<<<<< HEAD
+import React from 'react'
+
+const PlaceOrder = () => {
+  return (
+    <div>PlaceOrder</div>
+  )
+}
+
+export default PlaceOrder
+=======
 import React, { useContext, useState } from "react";
 import Title from "../components/Title";
 import { assets } from "../assets/assets";
@@ -134,3 +145,4 @@ const PlaceOrder = () => {
 };
 
 export default PlaceOrder;
+>>>>>>> temp-branch

@@ -1,3 +1,14 @@
+<<<<<<< HEAD
+import React from 'react'
+
+const Contact = () => {
+  return (
+    <div>Contact</div>
+  )
+}
+
+export default Contact
+=======
 import React from "react";
 import { assets } from "../assets/assets";
 import Title from "../components/Title";
@@ -39,3 +50,4 @@ const Contact = () => {
 };
 
 export default Contact;
+>>>>>>> temp-branch
