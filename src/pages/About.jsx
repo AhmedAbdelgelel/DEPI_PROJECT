@@ -1,14 +1,3 @@
-<<<<<<< HEAD
-import React from 'react'
-
-const About = () => {
-  return (
-    <div>About</div>
-  )
-}
-
-export default About;
-=======
 import React from "react";
 import { assets } from "../assets/assets";
 import Title from "../components/Title";
@@ -83,4 +72,3 @@ const About = () => {
 };
 
 export default About;
->>>>>>> temp-branch
