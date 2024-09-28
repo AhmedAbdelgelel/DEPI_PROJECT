@@ -1,14 +1,3 @@
-<<<<<<< HEAD
-import React from 'react'
-
-const Orders = () => {
-  return (
-    <div>Orders</div>
-  )
-}
-
-export default Orders
-=======
 import React, { useContext } from "react";
 import Title from "../components/Title";
 import { ShopContext } from "../context/ShopContext";
@@ -61,4 +50,3 @@ const Orders = () => {
 };
 
 export default Orders;
->>>>>>> temp-branch
