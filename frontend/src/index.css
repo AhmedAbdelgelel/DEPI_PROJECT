@@ -1,17 +1,14 @@
 @import url("https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Prata&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+a.active hr {
+  @apply block;
+}
 * {
   font-family: Outfit;
 }
-
-a.active hr {
-  display: block;
-}
-
 .prata-regular {
   font-family: "Prata", serif;
   font-weight: 400;
@@ -24,7 +21,6 @@ a.active hr {
 
 @media (max-width: 640px) {
   a.active {
-    background-color: black;
-    color: white;
+    @apply bg-black text-white;
   }
 }

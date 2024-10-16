@@ -1,131 +1,262 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Title from "../components/Title";
-import { assets } from "../assets/assets";
 import CartTotal from "../components/CartTotal";
+import { assets } from "../assets/assets";
 import { ShopContext } from "../context/ShopContext";
+import { toast } from "react-toastify";
+import axios from "axios";
+import { redirect } from "react-router-dom";
 
 const PlaceOrder = () => {
   const [method, setMethod] = useState("cod");
-  const { navigate } = useContext(ShopContext);
+  const [validated, setValidated] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const {
+    navigate,
+    backendUrl,
+    token,
+    cartItems,
+    setCartItems,
+    getCartAmount,
+    delivery_fee,
+    products,
+  } = useContext(ShopContext);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    street: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    country: "",
+    phone: "",
+  });
+
+  useEffect(() => {
+    if (!localStorage.getItem("token")) {
+      navigate("/login");
+    }
+  }, []);
+
+  const onChangeHandler = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevState) => ({
+      ...prevState,
+      [name]: value,
+    }));
+  };
+
+  const onSubmitHandler = async (event) => {
+    event.preventDefault();
+    const emptyFields = Object.keys(formData).filter(
+      (key) => formData[key] === ""
+    );
+
+    if (emptyFields.length > 0) {
+      toast.error("Please fill in all fields before placing the order.");
+    } else {
+      setValidated(true);
+    }
+    if (!validated) return;
+    setLoading(true);
+    try {
+      let orderItems = [];
+      for (const items in cartItems) {
+        for (const item in cartItems[items]) {
+          if (cartItems[items][item] > 0) {
+            const itemInfo = structuredClone(
+              products.find((product) => product._id === items)
+            );
+            if (itemInfo) {
+              itemInfo.size = item;
+              itemInfo.quantity = cartItems[items][item];
+              orderItems.push(itemInfo);
+            }
+          }
+        }
+      }
+      let orderData = {
+        address: formData,
+        items: orderItems,
+        amount: getCartAmount() + delivery_fee,
+      };
+      switch (method) {
+        // API call for COD
+        case "cod":
+          if (validated) {
+            const response = await axios.post(
+              backendUrl + "/api/order/place",
+              orderData,
+              { headers: { token } }
+            );
+            if (response.data.success) {
+              setCartItems("");
+              navigate("/orders");
+              toast.success(response.data.message);
+            } else {
+              toast.error(response.data.message);
+            }
+          }
+          break;
+        case "stripe":
+          if (validated) {
+            const responseStripe = await axios.post(
+              backendUrl + "/api/order/stripe",
+              orderData,
+              {
+                headers: { token },
+              }
+            );
+            if (responseStripe.data.success) {
+              const { session_url } = responseStripe.data;
+              window.location.replace(session_url);
+            } else {
+              toast.error(responseStripe.data.message);
+            }
+          }
+          break;
+        default:
+          break;
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col sm:flex-row justify-between gap-4 pt-5 sm:pt-14 min-h-[80vh] border-t">
-      {/* Left side */}
+      {/* Left Side */}
       <div className="flex flex-col gap-4 w-full sm:max-w-[480px]">
         <div className="text-xl sm:text-2xl my-3">
-          <div className="inline-flex gap-2 items-center mb-3">
-            <Title text1={"DELIVERY"} text2={"INFORMATION"} />
-          </div>
-          <div className="flex gap-3">
-            <input
-              className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-              type="text"
-              placeholder="First name"
-            />
-            <input
-              className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-              type="text"
-              placeholder="Last name"
-            />
-          </div>
-          <input
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-            type="email"
-            placeholder="Email address"
-          />
-          <input
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-            type="text"
-            placeholder="Street Name"
-          />
+          <Title text1={"DELIVERY"} text2={"INFORMATION"} />
         </div>
         <div className="flex gap-3">
           <input
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
             type="text"
-            placeholder="City"
+            placeholder="First Name"
+            value={formData.firstName}
+            name="firstName"
+            onChange={onChangeHandler}
+            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
           />
           <input
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
             type="text"
-            placeholder="State"
-          />
-        </div>
-        <div className="flex gap-3">
-          <input
+            placeholder="Last Name"
+            value={formData.lastName}
+            name="lastName"
+            onChange={onChangeHandler}
             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-            type="number"
-            placeholder="Zipcode"
-          />
-          <input
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-            type="text"
-            placeholder="Country"
           />
         </div>
         <input
+          type="email"
+          placeholder="Email Address"
+          name="email"
+          value={formData.email}
+          onChange={onChangeHandler}
           className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-          type="number"
+        />
+        <input
+          type="text"
+          placeholder="Street"
+          name="street"
+          value={formData.street}
+          onChange={onChangeHandler}
+          className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+        />
+        <div className="flex gap-3">
+          <input
+            type="text"
+            placeholder="City"
+            name="city"
+            value={formData.city}
+            onChange={onChangeHandler}
+            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+          />
+          <input
+            type="text"
+            placeholder="State"
+            name="state"
+            value={formData.state}
+            onChange={onChangeHandler}
+            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+          />
+        </div>
+        <div className="flex gap-3">
+          <input
+            type="number"
+            placeholder="Zip Code"
+            name="zipCode"
+            value={formData.zipCode}
+            onChange={onChangeHandler}
+            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+          />
+          <input
+            type="text"
+            placeholder="Country"
+            name="country"
+            value={formData.country}
+            onChange={onChangeHandler}
+            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+          />
+        </div>
+        <input
+          type="tel"
           placeholder="Phone"
+          value={formData.phone}
+          name="phone"
+          onChange={onChangeHandler}
+          className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
         />
       </div>
-
-      {/* Right side */}
+      {/* Right Side */}
       <div className="mt-8">
         <div className="mt-8 min-w-80">
           <CartTotal />
         </div>
         <div className="mt-12">
           <Title text1={"PAYMENT"} text2={"METHOD"} />
-          {/* Payment method */}
+          {/* Payment Method Selection */}
           <div className="flex gap-3 flex-col lg:flex-row">
             <div
               onClick={() => setMethod("stripe")}
-              className="flex items-center gap-3 border p-2 px-3 cursor-pointer"
+              className={`flex items-center gap-3 border p-2 px-3 cursor-pointer ${
+                method === "stripe" ? "border-green-400" : ""
+              }`}
             >
               <p
-                className={`min w-3.5 h-3.5 border rounded-full ${
+                className={`min-w-3.5 h-3.5 border rounded-full ${
                   method === "stripe" ? "bg-green-400" : ""
-                } `}
+                }`}
               ></p>
-              <img className="h-5 mx-4" src={assets.stripe_logo} alt="Stripe" />
-            </div>
-            <div
-              onClick={() => setMethod("razorpay")}
-              className="flex items-center gap-3 border p-2 px-3 cursor-pointer"
-            >
-              <p
-                className={`min w-3.5 h-3.5 border rounded-full ${
-                  method === "razorpay" ? "bg-green-400" : ""
-                } `}
-              ></p>
-              <img
-                className="h-5 mx-4"
-                src={assets.razorpay_logo}
-                alt="Razorpay"
-              />
+              <img src={assets.stripe_logo} className="h-5 mx-4" alt="" />
             </div>
             <div
               onClick={() => setMethod("cod")}
-              className="flex items-center gap-3 border p-2 px-3 cursor-pointer"
+              className={`flex items-center gap-3 border p-2 px-3 cursor-pointer ${
+                method === "cod" ? "border-green-400" : ""
+              }`}
             >
               <p
-                className={`min w-3.5 h-3.5 border rounded-full ${
+                className={`min-w-3.5 h-3.5 border rounded-full ${
                   method === "cod" ? "bg-green-400" : ""
-                } `}
+                }`}
               ></p>
-              <p className="text-gray-500 text-sm font-medium">
+              <p className="text-gray-500 text-sm font-medium mx-4">
                 CASH ON DELIVERY
               </p>
             </div>
           </div>
-
           <div className="w-full text-end mt-8">
             <button
-              onClick={() => navigate("/orders")}
-              className="bg-black text-white px-16 py-3 text-sm"
+              className="bg-black text-white px-16 py-3 text-sm "
+              onClick={onSubmitHandler}
             >
-              PLACE ORDER
+              {loading ? "Placing Order..." : "Place Order"}
             </button>
           </div>
         </div>
@@ -135,152 +266,3 @@ const PlaceOrder = () => {
 };
 
 export default PlaceOrder;
-
-// <<<<<<< HEAD
-// import React from 'react'
-
-// const PlaceOrder = () => {
-//   return (
-//     <div>PlaceOrder</div>
-//   )
-// }
-
-// export default PlaceOrder
-// =======
-// import React, { useContext, useState } from "react";
-// import Title from "../components/Title";
-// import { assets } from "../assets/assets";
-// import CartTotal from "../components/CartTotal";
-// import { ShopContext } from "../context/ShopContext";
-
-// const PlaceOrder = () => {
-//   const [method, setMethod] = useState("cod");
-
-//   const { navigate } = useContext(ShopContext);
-
-//   return (
-//     <div className="flex flex-col sm:flex-row justify-between gap-4 pt-5 sm:pt-14 min-h-[80vh] border-t">
-//       {/* left side */}
-//       <div className="flex flex-col gap-4 w-full sm:max-w-[480px]">
-//         <div className="text-xl sm:text-2xl my-3">
-//           <div className="inline-flex gap-2 items-center mb-3">
-//             <Title text1={"DELIVERY"} text2={"INFORMATION"} />
-//           </div>
-
-//           <div className="flex gap-3">
-//             <input
-//               className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-//               type="text"
-//               placeholder="First name"
-//             />
-//             <input
-//               className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-//               type="text"
-//               placeholder="Last name"
-//             />
-//           </div>
-
-//           <input
-//             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-//             type="email"
-//             placeholder="Email address"
-//           />
-//           <input
-//             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-//             type="text"
-//             placeholder="Street Name"
-//           />
-//         </div>
-//         <div className="flex gap-3">
-//           <input
-//             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-//             type="text"
-//             placeholder="City"
-//           />
-//           <input
-//             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-//             type="text"
-//             placeholder="State"
-//           />
-//         </div>
-//         <div className="flex gap-3">
-//           <input
-//             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-//             type="number"
-//             placeholder="Zipcode"
-//           />
-//           <input
-//             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-//             type="text"
-//             placeholder="Country"
-//           />
-//         </div>
-//         <input
-//           className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-//           type="number"
-//           placeholder="Phone"
-//         />
-//       </div>
-
-//       {/* Right side */}
-//       <div className="mt-8">
-//         <div className="mt-8 min-w-80">
-//           <CartTotal />
-//         </div>
-//         <div className="mt-12">
-//           <Title text1={"PAYMENT"} text2={"METHOD"} />
-//           {/*    payment method    */}
-//           <div className="flex gap-3 flex-col lg:flex-row">
-//             <div
-//               onClick={() => setMethod("stripe")}
-//               className="flex items-center gap-3 border p-2 px-3 cursor-pointer"
-//             >
-//               <p
-//                 className={`min w-3.5 h-3.5 border rounded-full ${
-//                   method === "stripe" ? "bg-green-400" : ""
-//                 } `}
-//               ></p>
-//               <img className="h-5 mx-4" src={assets.stripe_logo} alt="" />
-//             </div>
-//             <div
-//               onClick={() => setMethod("razorpay")}
-//               className="flex items-center gap-3 border p-2 px-3 cursor-pointer"
-//             >
-//               <p
-//                 className={`min w-3.5 h-3.5 border rounded-full ${
-//                   method === "razorpay" ? "bg-green-400" : ""
-//                 } `}
-//               ></p>
-//               <img className="h-5 mx-4" src={assets.razorpay_logo} alt="" />
-//             </div>
-//             <div
-//               onClick={() => setMethod("cod")}
-//               className="flex items-center gap-3 border p-2 px-3 cursor-pointer"
-//             >
-//               <p
-//                 className={`min w-3.5 h-3.5 border rounded-full ${
-//                   method === "cod" ? "bg-green-400" : ""
-//                 } `}
-//               ></p>
-//               <p className="text-gray-500 text-sm font-medium">
-//                 CASH ON DELIVERY
-//               </p>
-//             </div>
-//           </div>
-
-//           <div className="w-full text-end mt-8">
-//             <button
-//               onClick={() => navigate("/orders")}
-//               className="bg-black text-white px-16 py-3 text-sm"
-//             >
-//               PLACE ORDER
-//             </button>
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default PlaceOrder;
-// >>>>>>> temp-branch
